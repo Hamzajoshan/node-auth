@@ -1,0 +1,112 @@
+const ErrorResponse = require("../utils/errorResponse");
+const User = require("../models/User");
+const Staff = require("../models/Staff");
+const asyncHandler = require("../middleware/async");
+const { JWT_COOKIE_EXPIRE } = require("../config/jwtconfig");
+
+//@desc Register User
+//@route POST /api/v1/auth/register
+//@access public
+exports.registerUser = asyncHandler(async (req, res, next) => {
+  const { name, email, password, companyEmail } = req.body;
+  //create user
+  const user = await User.create({
+    name,
+    email,
+    password,
+    companyEmail,
+  });
+  //getting token
+  sendTokenResponse(user, 200, res);
+});
+
+//@desc Login User
+//@route POST /api/v1/auth/login
+//@access public
+exports.login = asyncHandler(async (req, res, next) => {
+  const { email, password } = req.body;
+  //Validate email and password
+  if (!email || !password) {
+    return next(new ErrorResponse("Please Provide an email and password", 400));
+  }
+  //check for user
+  /*yahan py hm ny +password is liye use kiya hai q k model men hm ny password ko select
+    false rkha huwa h so password select ni hoga is liye hmen usy select krny k liye yeh kaam
+    krna pry ga
+    */
+  const user = await User.findOne({ email }).select("+password");
+  if (!user) {
+    return next(new ErrorResponse("Invalid Credentials", 401));
+  }
+
+  //check if password matches
+  const isMatched = await user.matchPassword(password);
+  if (!isMatched) {
+    return next(new ErrorResponse("Invalid Credentials", 401));
+  }
+  //getting token
+
+  sendTokenResponse(user, 200, res);
+});
+//get token from model create cookie and send response
+const sendTokenResponse = (user, statusCode, res) => {
+  const token = user.getSignedJwtToken();
+  //httpOnly is used that it only used at client side
+  const options = {
+    expires: new Date(Date.now() + JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+    httpOnly: true,
+  };
+  res.status(statusCode).cookie("token", token, options).json({
+    success: true,
+    token,
+  });
+};
+
+//@desc Get Currently Logged in user
+//@route GET /api/v1/auth/me
+//@access private
+exports.getMe = asyncHandler(async (req, res, next) => {
+  console.log("id=>", req.user.id);
+  const user = await User.findById(req.user.id);
+  console.log("user", user);
+  res.status(200).json({
+    success: true,
+    data: user,
+  });
+});
+//@desc Forgot password User
+//@route POST /api/v1/auth/forgotPassword
+//@access private
+exports.forgotPassword = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) {
+    return next(new ErrorResponse("No Email Provided", 404));
+  }
+  const user = await User.findOne({ email: email });
+  if (user.length < 1) {
+    return next(new ErrorResponse("No Email Found", 404));
+  }
+  sendForgotTokenInReponse(user, 200, res);
+});
+//get token from model create cookie and send response
+const sendForgotTokenInReponse = async (user, statusCode, res) => {
+  const token = user.getSignedJwtTokenForgotPasswod();
+  //saving token to userschema as well.
+  await User.findOneAndUpdate(
+    {
+      _id: user.id,
+    },
+    {
+      resetPasswordToken: token,
+    }
+  );
+  //httpOnly is used that it only used at client side
+  const options = {
+    expires: new Date(Date.now() + JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+    httpOnly: true,
+  };
+  res.status(statusCode).cookie("token", token, options).json({
+    success: true,
+    token,
+  });
+};
