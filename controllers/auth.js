@@ -1,8 +1,13 @@
 const ErrorResponse = require("../utils/errorResponse");
 const User = require("../models/User");
-const Staff = require("../models/Staff");
+const jwt = require("jsonwebtoken");
 const asyncHandler = require("../middleware/async");
-const { JWT_COOKIE_EXPIRE } = require("../config/jwtconfig");
+const bcrypt = require("bcryptjs");
+const {
+  JWT_FORGOT_TOKEN_EXPIRE,
+  JWT_SECRET,
+  JWT_COOKIE_EXPIRE,
+} = require("../config/jwtconfig");
 
 //@desc Register User
 //@route POST /api/v1/auth/register
@@ -53,7 +58,9 @@ const sendTokenResponse = (user, statusCode, res) => {
   const token = user.getSignedJwtToken();
   //httpOnly is used that it only used at client side
   const options = {
-    expires: new Date(Date.now() + JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+    expires: new Date(
+      Date.now() + JWT_FORGOT_TOKEN_EXPIRE * 24 * 60 * 60 * 1000
+    ),
     httpOnly: true,
   };
   res.status(statusCode).cookie("token", token, options).json({
@@ -92,12 +99,14 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 const sendForgotTokenInReponse = async (user, statusCode, res) => {
   const token = user.getSignedJwtTokenForgotPasswod();
   //saving token to userschema as well.
+  const durationSeconds = 3600 * 24 * 1000;
   await User.findOneAndUpdate(
     {
       _id: user.id,
     },
     {
       resetPasswordToken: token,
+      resetPasswordExpired: Date.now() + 1 * durationSeconds,
     }
   );
   //httpOnly is used that it only used at client side
@@ -110,3 +119,47 @@ const sendForgotTokenInReponse = async (user, statusCode, res) => {
     token,
   });
 };
+
+//@desc Forgot password User
+//@route POST /api/v1/auth/forgotPassword
+//@access private
+
+exports.resetPassword = asyncHandler(async (req, res, next) => {
+  const { newPassword, token } = req.body;
+  if (token == "") {
+    return next(new ErrorResponse("Token Is not provided", 400));
+  }
+  const decoded = jwt.verify(token, JWT_SECRET);
+  console.log(decoded);
+  if (!decoded.id) {
+    return next(new ErrorResponse("Token Expire", 400));
+  }
+  if (newPassword == "") {
+    return next(new ErrorResponse("Password Is not provided", 400));
+  }
+  const user = await User.find({
+    _id: decoded.id,
+    resetPasswordToken: token,
+  });
+  console.log(staff);
+  if (user.length < 1) {
+    return next(new ErrorResponse("Token Expired", 400));
+  }
+  const salt = await bcrypt.genSalt(10);
+  const updateDPassword = await bcrypt.hash(newPassword, salt);
+  const update = await User.findOneAndUpdate(
+    {
+      _id: decoded.id,
+    },
+    {
+      resetPasswordToken: null,
+      resetPasswordExpired: Date.now() - 10 * 10,
+      password: updateDPassword,
+    }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Password Updated Successfully",
+  });
+});

@@ -1,8 +1,13 @@
 const ErrorResponse = require("../utils/errorResponse");
-
+const bcrypt = require("bcryptjs");
 const Staff = require("../models/Staff");
+const jwt = require("jsonwebtoken");
 const asyncHandler = require("../middleware/async");
-const { JWT_COOKIE_EXPIRE } = require("../config/jwtconfig");
+const {
+  JWT_FORGOT_TOKEN_EXPIRE,
+  JWT_SECRET,
+  JWT_COOKIE_EXPIRE,
+} = require("../config/jwtconfig");
 
 //@desc Register User
 //@route POST /api/v1/auth/register
@@ -65,8 +70,7 @@ const sendTokenResponse = (staff, statusCode, res) => {
 //@route GET /api/v1/auth/me
 //@access private
 exports.getMe = asyncHandler(async (req, res, next) => {
-  console.log("id=>", req.user.id);
-  const staff = await Staff.findById(req.user.id);
+  const staff = await Staff.findById(req.staff.id);
   console.log("user", staff);
   res.status(200).json({
     success: true,
@@ -91,6 +95,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 //get token from model create cookie and send response
 const sendForgotTokenInReponse = async (staff, statusCode, res) => {
   const token = staff.getSignedJwtTokenForgotPasswod();
+  const durationSeconds = 3600 * 24 * 1000;
   //saving token to userschema as well.
   await Staff.findOneAndUpdate(
     {
@@ -98,11 +103,14 @@ const sendForgotTokenInReponse = async (staff, statusCode, res) => {
     },
     {
       resetPasswordToken: token,
+      resetPasswordExpired: Date.now() + 1 * durationSeconds,
     }
   );
   //httpOnly is used that it only used at client side
   const options = {
-    expires: new Date(Date.now() + JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+    expires: new Date(
+      Date.now() + JWT_FORGOT_TOKEN_EXPIRE * 1 * 24 * 60 * 60 * 1000
+    ),
     httpOnly: true,
   };
   res.status(statusCode).cookie("token", token, options).json({
@@ -110,3 +118,46 @@ const sendForgotTokenInReponse = async (staff, statusCode, res) => {
     token,
   });
 };
+
+//@desc Reset password Staff
+//@route POST /api/v1/staff/resetPassword
+//@access private
+exports.resetPassword = asyncHandler(async (req, res, next) => {
+  const { newPassword, token } = req.body;
+  if (token == "") {
+    return next(new ErrorResponse("Token Is not provided", 400));
+  }
+  const decoded = jwt.verify(token, JWT_SECRET);
+  console.log(decoded);
+  if (!decoded.id) {
+    return next(new ErrorResponse("Token Expire", 400));
+  }
+  if (newPassword == "") {
+    return next(new ErrorResponse("Password Is not provided", 400));
+  }
+  const staff = await Staff.find({
+    _id: decoded.id,
+    resetPasswordToken: token,
+  });
+  console.log(staff);
+  if (staff.length < 1) {
+    return next(new ErrorResponse("Token Expired", 400));
+  }
+  const salt = await bcrypt.genSalt(10);
+  const updateDPassword = await bcrypt.hash(newPassword, salt);
+  const update = await Staff.findOneAndUpdate(
+    {
+      _id: decoded.id,
+    },
+    {
+      resetPasswordToken: null,
+      resetPasswordExpired: Date.now() - 10 * 10,
+      password: updateDPassword,
+    }
+  );
+  console.log("update", update);
+  res.status(200).json({
+    success: true,
+    message: "Password Updated Successfully",
+  });
+});
