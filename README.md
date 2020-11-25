@@ -10,6 +10,10 @@ i-> npm install
 
 ii-> npm run dev
 
+## Unit Testing
+
+npm test
+
 ## Hitting Api URL
 
 ## For Staff

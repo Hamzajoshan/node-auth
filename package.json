@@ -4,8 +4,11 @@
   "description": "Authentication",
   "main": "server.js",
   "scripts": {
-    "test": "",
+    "test": "jest --watchAll",
     "dev": "nodemon server"
+  },
+  "jest": {
+    "testEnvironment": "node"
   },
   "author": "Hamza Joshan",
   "license": "MIT",
@@ -16,9 +19,14 @@
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "express": "^4.17.1",
+    "jest": "^26.6.3",
     "jsonwebtoken": "^8.5.1",
     "moment": "^2.27.0",
     "mongoose": "^5.9.24",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "supertest": "^6.0.1"
+  },
+  "devDependencies": {
+    "env-cmd": "^8.0.2"
   }
 }
