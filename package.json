@@ -8,7 +8,8 @@
     "dev": "nodemon server"
   },
   "jest": {
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "collectCoverage": true
   },
   "author": "Hamza Joshan",
   "license": "MIT",

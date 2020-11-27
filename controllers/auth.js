@@ -90,7 +90,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("No Email Provided", 404));
   }
   const user = await User.findOne({ email: email });
-  if (user.length < 1) {
+  if (!user) {
     return next(new ErrorResponse("No Email Found", 404));
   }
   sendForgotTokenInReponse(user, 200, res);
@@ -139,9 +139,8 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   }
   const user = await User.find({
     _id: decoded.id,
-    resetPasswordToken: token,
   });
-  console.log(staff);
+
   if (user.length < 1) {
     return next(new ErrorResponse("Token Expired", 400));
   }

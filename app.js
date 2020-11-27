@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const cookieParser = require("cookie-parser");
 const errorHandler = require("./middleware/error");
-const connectDB = require("./config/db");
+const connectDB = require("./config/testDb");
 const auth = require("./routes/auth");
 const staff = require("./routes/staff");
 connectDB();

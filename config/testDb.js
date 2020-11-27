@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(
-      "mongodb+srv://hamzajoshan:TGHXFM86DCNHTav@moneyexchanger.recgs.mongodb.net/nodeAuthDB?retryWrites=true&w=majority",
+      "mongodb://127.0.0.1/testing-node-auth",
+      // "mongodb+srv://hamzajoshan:TGHXFM86DCNHTav@moneyexchanger.recgs.mongodb.net/nodeAuthDB?retryWrites=true&w=majority",
       {
         useNewUrlParser: true,
         useCreateIndex: true,
