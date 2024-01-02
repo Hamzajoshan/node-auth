@@ -41,7 +41,12 @@ app.use("/api/v1/auth", auth);
 app.use("/api/v1/staff", staff);
 
 app.use(errorHandler);
-
+app.get("/", (req, res) => {
+  res.status(200).json({
+    name: "Hamza Arshad",
+    role: "Full Stack Developer & Tech Lead",
+  });
+});
 const serverRun = app.listen(PORT, () => {
   console.log(`server running in on port ${PORT}`);
 });
